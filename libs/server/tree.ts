@@ -1,13 +1,43 @@
-import { StoreProvider } from 'packages/store/src'
+import { StoreProvider } from 'libs/server/store'
 import TreeActions, {
   DEFAULT_TREE,
   movePosition,
+  ROOT_ID,
   TreeItemModel,
   TreeModel,
 } from 'libs/shared/tree'
+import { filter, forEach, isNil } from 'lodash'
 import { getPathTree } from './note-path'
 
-export class TreeStore {
+/**
+ * FIXME 抽空重构 libs/shard/tree
+ *
+ * We need unit test...
+ *
+ * 1. children 有可能包含 null，暂不清楚从哪产生的
+ * 2. 可能会存在 children 包含当前节点的问题
+ * 3. children 可能包含不存在的节点
+ *
+ */
+function fixedTree(tree: TreeModel) {
+  forEach(tree.items, (item) => {
+    if (
+      item.children.find((i) => i === null || i === item.id || !tree.items[i])
+    ) {
+      console.log('item.children error', item)
+      tree.items[item.id] = {
+        ...item,
+        children: filter(
+          item.children,
+          (cid) => !isNil(cid) && cid !== item.id && !!tree.items[cid]
+        ),
+      }
+    }
+  })
+  return tree
+}
+
+export default class TreeStore {
   store: StoreProvider
   treePath: string
 
@@ -23,19 +53,33 @@ export class TreeStore {
       return this.set(DEFAULT_TREE)
     }
 
-    return JSON.parse(res) as TreeModel
+    const tree = JSON.parse(res) as TreeModel
+
+    return fixedTree(tree)
   }
 
   async set(tree: TreeModel) {
-    await this.store.putObject(this.treePath, JSON.stringify(tree))
+    const newTree = fixedTree(tree)
 
-    return tree
+    await this.store.putObject(this.treePath, JSON.stringify(newTree))
+
+    return newTree
   }
 
-  async addItem(id: string, parentId = 'root') {
+  async addItem(id: string, parentId = ROOT_ID) {
     const tree = await this.get()
 
     return this.set(TreeActions.addItem(tree, id, parentId))
+  }
+
+  async addItems(ids: string[], parentId = ROOT_ID) {
+    let tree = await this.get()
+
+    ids.forEach((id) => {
+      tree = TreeActions.addItem(tree, id, parentId)
+    })
+
+    return this.set(tree)
   }
 
   async removeItem(id: string) {

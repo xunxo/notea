@@ -1,10 +1,10 @@
-import { NoteModel } from 'libs/web/state/note'
+import { NoteModel } from 'libs/shared/note'
 import { useCallback } from 'react'
-import { noteCache } from '../cache/note'
-import { useFetcher } from './fetcher'
+import noteCache from '../cache/note'
+import useFetcher from './fetcher'
 
-export function useNoteAPI() {
-  const { loading, request, abort } = useFetcher()
+export default function useNoteAPI() {
+  const { loading, request, abort, error } = useFetcher()
 
   const find = useCallback(
     async (id: string) => {
@@ -71,6 +71,7 @@ export function useNoteAPI() {
 
   return {
     loading,
+    error,
     abort,
     find,
     create,

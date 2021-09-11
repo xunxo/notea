@@ -1,4 +1,4 @@
-import { NoteModel } from 'libs/web/state/note'
+import { NoteModel } from 'libs/shared/note'
 import localforage from 'localforage'
 
 export const uiCache = localforage.createInstance({
@@ -14,4 +14,6 @@ export interface NoteCacheItem extends NoteModel {
    * remove markdown tag
    */
   rawContent?: string
+
+  linkIds?: string[]
 }

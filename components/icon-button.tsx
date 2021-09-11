@@ -1,19 +1,43 @@
 import classNames from 'classnames'
-import { forwardRef, HTMLProps } from 'react'
-import Trash from 'heroicons/react/outline/Trash'
-import Menu from 'heroicons/react/outline/Menu'
-import Plus from 'heroicons/react/outline/Plus'
-import DotsHorizontal from 'heroicons/react/outline/DotsHorizontal'
-import ChevronRight from 'heroicons/react/outline/ChevronRight'
-import Reply from 'heroicons/react/outline/Reply'
+import { forwardRef, HTMLProps, useCallback } from 'react'
+import {
+  TrashIcon,
+  MenuIcon,
+  PlusIcon,
+  DotsHorizontalIcon,
+  ChevronRightIcon,
+  ReplyIcon,
+  ShareIcon,
+  DuplicateIcon,
+  DocumentIcon,
+  DocumentTextIcon,
+  SelectorIcon,
+  LinkIcon,
+  ArrowSmLeftIcon,
+  ArrowSmRightIcon,
+  ExternalLinkIcon,
+  BookmarkAltIcon,
+  PuzzleIcon,
+} from '@heroicons/react/outline'
 
 export const ICONS = {
-  Trash,
-  Menu,
-  Plus,
-  DotsHorizontal,
-  ChevronRight,
-  Reply,
+  Trash: TrashIcon,
+  Menu: MenuIcon,
+  Plus: PlusIcon,
+  DotsHorizontal: DotsHorizontalIcon,
+  ChevronRight: ChevronRightIcon,
+  Reply: ReplyIcon,
+  Share: ShareIcon,
+  Duplicate: DuplicateIcon,
+  Document: DocumentIcon,
+  DocumentText: DocumentTextIcon,
+  Selector: SelectorIcon,
+  Link: LinkIcon,
+  ArrowSmLeft: ArrowSmLeftIcon,
+  ArrowSmRight: ArrowSmRightIcon,
+  ExternalLink: ExternalLinkIcon,
+  BookmarkAlt: BookmarkAltIcon,
+  Puzzle: PuzzleIcon,
 }
 
 const IconButton = forwardRef<
@@ -21,23 +45,53 @@ const IconButton = forwardRef<
   HTMLProps<HTMLSpanElement> & {
     icon: keyof typeof ICONS
     iconClassName?: string
+    rounded?: boolean
   }
->(({ children, className, iconClassName = '', icon, ...attrs }, ref) => {
-  const Icon = ICONS[icon]
+>(
+  (
+    {
+      children,
+      rounded = true,
+      className,
+      iconClassName = '',
+      icon,
+      disabled,
+      onClick,
+      ...attrs
+    },
+    ref
+  ) => {
+    const Icon = ICONS[icon]
 
-  return (
-    <span
-      ref={ref}
-      {...attrs}
-      className={classNames(
-        'p-0.5 rounded hover:bg-gray-400 cursor-pointer w-5 h-5',
-        className
-      )}
-    >
-      <Icon className={iconClassName}></Icon>
-      {children}
-    </span>
-  )
-})
+    const handleClick = useCallback(
+      (event) => {
+        if (!disabled && onClick) {
+          onClick(event)
+        }
+      },
+      [disabled, onClick]
+    )
+
+    return (
+      <span
+        ref={ref}
+        onClick={handleClick}
+        {...attrs}
+        className={classNames(
+          'block p-0.5 cursor-pointer w-7 h-7 md:w-6 md:h-6',
+          {
+            rounded,
+            'cursor-not-allowed opacity-20': disabled,
+          },
+          !disabled && 'hover:bg-gray-400',
+          className
+        )}
+      >
+        <Icon className={classNames(iconClassName)}></Icon>
+        {children}
+      </span>
+    )
+  }
+)
 
 export default IconButton

@@ -1,10 +1,32 @@
-import { strCompress } from 'packages/shared'
-import { api } from 'libs/server/api'
+import { api } from 'libs/server/connect'
 import { metaToJson } from 'libs/server/meta'
 import { useAuth } from 'libs/server/middlewares/auth'
 import { useStore } from 'libs/server/middlewares/store'
 import { getPathNoteById } from 'libs/server/note-path'
-import { PAGE_META_KEY } from 'libs/shared/meta'
+import { NoteModel } from 'libs/shared/note'
+import { StoreProvider } from 'libs/server/store'
+import { API } from 'libs/server/middlewares/error'
+import { strCompress } from 'libs/shared/str'
+import { ROOT_ID } from 'libs/shared/tree'
+
+export async function getNote(
+  store: StoreProvider,
+  id: string
+): Promise<NoteModel> {
+  const { content, meta } = await store.getObjectAndMeta(getPathNoteById(id))
+
+  if (!content && !meta) {
+    throw API.NOT_FOUND.throw()
+  }
+
+  const jsonMeta = metaToJson(meta)
+
+  return {
+    id,
+    content: content || '\n',
+    ...jsonMeta,
+  } as NoteModel
+}
 
 export default api()
   .use(useAuth)
@@ -14,8 +36,8 @@ export default api()
     const notePath = getPathNoteById(id)
 
     await Promise.all([
-      req.store.deleteObject(notePath),
-      req.treeStore.removeItem(id),
+      req.state.store.deleteObject(notePath),
+      req.state.treeStore.removeItem(id),
     ])
 
     res.end()
@@ -23,39 +45,35 @@ export default api()
   .get(async (req, res) => {
     const id = req.query.id as string
 
-    if (id === 'root') {
+    if (id === ROOT_ID) {
       return res.json({
         id,
       })
     }
 
-    const { content, meta } = await req.store.getObjectAndMeta(
-      getPathNoteById(id),
-      PAGE_META_KEY
-    )
+    const note = await getNote(req.state.store, id)
 
-    if (!content && !meta) {
-      return res.APIError.NOT_FOUND.throw()
-    }
-    const jsonMeta = metaToJson(meta)
-
-    res.json({
-      id,
-      content: content || '\n',
-      ...jsonMeta,
-    })
+    res.json(note)
   })
   .post(async (req, res) => {
     const id = req.query.id as string
     const { content } = req.body
     const notePath = getPathNoteById(id)
-    const oldMeta = await req.store.getObjectMeta(notePath)
+    const oldMeta = await req.state.store.getObjectMeta(notePath)
 
     if (oldMeta) {
-      oldMeta.set('date', strCompress(new Date().toISOString()))
+      oldMeta['date'] = strCompress(new Date().toISOString())
     }
 
-    await req.store.putObject(notePath, content, {
+    // Empty content may be a misoperation
+    if (!content || content.trim() === '\\') {
+      await req.state.store.copyObject(notePath, notePath + '.bak', {
+        meta: oldMeta,
+        contentType: 'text/markdown',
+      })
+    }
+
+    await req.state.store.putObject(notePath, content, {
       contentType: 'text/markdown',
       meta: oldMeta,
     })

@@ -1,13 +1,25 @@
-import { NoteModel } from 'libs/web/state/note'
+import { NoteModel } from 'libs/shared/note'
 import Link from 'next/link'
-import React, { FC, ReactText, MouseEvent, useCallback } from 'react'
+import { FC, ReactText, MouseEvent, useCallback } from 'react'
 import classNames from 'classnames'
 import router, { useRouter } from 'next/router'
 import HotkeyTooltip from 'components/hotkey-tooltip'
-import SidebarItemMenu from './sidebar-item-menu'
 import IconButton from 'components/icon-button'
-import { NoteTreeState } from 'libs/web/state/tree'
+import NoteTreeState from 'libs/web/state/tree'
 import { Skeleton } from '@material-ui/lab'
+import PortalState from 'libs/web/state/portal'
+import useI18n from 'libs/web/hooks/use-i18n'
+
+const TextSkeleton = () => (
+  <Skeleton
+    width={80}
+    variant="text"
+    animation="wave"
+    classes={{
+      root: 'bg-gray-300',
+    }}
+  />
+)
 
 const SidebarListItem: FC<{
   item: NoteModel
@@ -32,17 +44,32 @@ const SidebarListItem: FC<{
   hasChildren,
   ...attrs
 }) => {
+  const { t } = useI18n()
   const { query } = useRouter()
   const { mutateItem, initLoaded } = NoteTreeState.useContainer()
+  const {
+    menu: { open, setData, setAnchor },
+  } = PortalState.useContainer()
+
   const onAddNote = useCallback(
     (e: MouseEvent) => {
       e.preventDefault()
-      router.push(`/note/new?pid=` + item.id, undefined, { shallow: true })
+      router.push(`/new?pid=` + item.id, undefined, { shallow: true })
       mutateItem(item.id, {
         isExpanded: true,
       })
     },
     [item.id, mutateItem]
+  )
+
+  const handleClickMenu = useCallback(
+    (event: MouseEvent) => {
+      event.preventDefault()
+      setAnchor(event.target as Element)
+      open()
+      setData(item)
+    },
+    [item, open, setAnchor, setData]
   )
 
   return (
@@ -58,11 +85,17 @@ const SidebarListItem: FC<{
           }
         )}
       >
-        <Link href={`/note/${item.id}`} shallow>
-          <a className="flex flex-1 truncate px-2 py-1.5">
+        <Link href={`/${item.id}`} shallow>
+          <a className="flex flex-1 items-center truncate px-2 py-1.5">
             <IconButton
               className="mr-1"
-              icon="ChevronRight"
+              icon={
+                hasChildren || isExpanded
+                  ? 'ChevronRight'
+                  : item.title
+                  ? 'DocumentText'
+                  : 'Document'
+              }
               iconClassName={classNames('transition-transform transform', {
                 'rotate-90': isExpanded,
               })}
@@ -71,19 +104,21 @@ const SidebarListItem: FC<{
                 isExpanded ? onCollapse(item.id) : onExpand(item.id)
               }}
             ></IconButton>
-            <span className="flex-1 truncate">
-              {initLoaded ? (
-                item.title || 'Untitled'
-              ) : (
-                <Skeleton width={80} variant="text" />
-              )}
+            <span className="flex-1 truncate" dir="auto">
+              {item.title || (initLoaded ? t('Untitled') : <TextSkeleton />)}
             </span>
           </a>
         </Link>
 
-        <SidebarItemMenu note={item} />
+        <HotkeyTooltip text={t('Remove, Copy Link, etc')}>
+          <IconButton
+            icon="DotsHorizontal"
+            onClick={handleClickMenu}
+            className="hidden group-hover:block"
+          ></IconButton>
+        </HotkeyTooltip>
 
-        <HotkeyTooltip text="新建子页面">
+        <HotkeyTooltip text={t('Add a page inside')}>
           <IconButton
             icon="Plus"
             onClick={onAddNote}
@@ -94,16 +129,12 @@ const SidebarListItem: FC<{
 
       {!hasChildren && isExpanded && (
         <div
-          className="ml-8 py-1.5 text-gray-400 select-none"
+          className="ml-9 py-1.5 text-gray-400 select-none"
           style={{
             paddingLeft: attrs.style?.paddingLeft,
           }}
         >
-          {initLoaded ? (
-            'No notes inside'
-          ) : (
-            <Skeleton width={80} variant="text" />
-          )}
+          {initLoaded ? t('No notes inside') : <TextSkeleton />}
         </div>
       )}
     </>

@@ -1,42 +1,21 @@
-import { NoteTreeState } from 'libs/web/state/tree'
-import { FC, useCallback, useEffect } from 'react'
-import { NoteState } from 'libs/web/state/note'
+import NoteTreeState from 'libs/web/state/tree'
+import { FC, useEffect } from 'react'
+import NoteState from 'libs/web/state/note'
 import { useResizeDetector } from 'react-resize-detector'
 import Sidebar from 'components/sidebar/sidebar'
-import { UIState } from 'libs/web/state/ui'
-import styled from 'styled-components'
+import UIState from 'libs/web/state/ui'
 import Resizable from 'components/resizable'
-import classNames from 'classnames'
 import { TreeModel } from 'libs/shared/tree'
-
-const StyledWrapper = styled.div`
-  .gutter {
-    pointer-events: ${(props: { disabled: boolean }) =>
-      props.disabled ? 'none' : 'auto'};
-  }
-`
-
-const LayoutMain: FC<{
-  tree: TreeModel
-}> = ({ children, tree }) => {
-  const { ua } = UIState.useContainer()
-
-  useEffect(() => {
-    document.body.classList.add('overflow-hidden')
-  }, [])
-
-  return (
-    <NoteTreeState.Provider initialState={tree}>
-      <NoteState.Provider>
-        {ua?.isMobileOnly ? (
-          <MobileMainWrapper>{children}</MobileMainWrapper>
-        ) : (
-          <MainWrapper>{children}</MainWrapper>
-        )}
-      </NoteState.Provider>
-    </NoteTreeState.Provider>
-  )
-}
+import TrashState from 'libs/web/state/trash'
+import TrashModal from 'components/portal/trash-modal/trash-modal'
+import SearchState from 'libs/web/state/search'
+import SearchModal from 'components/portal/search-modal/search-modal'
+import ShareModal from 'components/portal/share-modal'
+import { SwipeableDrawer } from '@material-ui/core'
+import SidebarMenu from 'components/portal/sidebar-menu/sidebar-menu'
+import { NoteModel } from 'libs/shared/note'
+import PreviewModal from 'components/portal/preview-modal'
+import LinkToolbar from 'components/portal/link-toolbar/link-toolbar'
 
 const MainWrapper: FC = ({ children }) => {
   const {
@@ -47,36 +26,88 @@ const MainWrapper: FC = ({ children }) => {
   })
 
   return (
-    <StyledWrapper className="h-screen" disabled={isFold} ref={ref}>
+    <div className="h-full" ref={ref}>
       <Resizable width={width}>
         <Sidebar />
-        <main className="relative flex-grow">{children}</main>
+        <main className="relative">{children}</main>
       </Resizable>
-    </StyledWrapper>
+      <style jsx global>
+        {`
+          .gutter {
+            pointer-events: ${isFold ? 'none' : 'auto'};
+          }
+        `}
+      </style>
+    </div>
   )
 }
 
 const MobileMainWrapper: FC = ({ children }) => {
   const {
-    sidebar: { isFold, toggleFold },
+    sidebar: { isFold, open, close },
   } = UIState.useContainer()
 
-  const onFold = useCallback(() => {
-    toggleFold(true)
-  }, [toggleFold])
-
   return (
-    <StyledWrapper
-      className={classNames('flex h-screen relative transform transition-all', {
-        'translate-x-3/4': !isFold,
-      })}
-      disabled={true}
-    >
-      <Sidebar />
-      <main className="flex-grow overflow-y-auto" onClick={onFold}>
+    <div className="flex h-full">
+      <SwipeableDrawer
+        anchor="left"
+        open={isFold}
+        onClose={close}
+        onOpen={open}
+        hysteresis={0.4}
+        // todo 优化移动端左边按钮和滑动冲突的问题
+        disableDiscovery
+      >
+        <Sidebar />
+      </SwipeableDrawer>
+
+      <main className="flex-grow" onClick={close}>
         {children}
       </main>
-    </StyledWrapper>
+      <style jsx global>
+        {`
+          .gutter {
+            pointer-events: none;
+          }
+        `}
+      </style>
+    </div>
+  )
+}
+
+const LayoutMain: FC<{
+  tree?: TreeModel
+  note?: NoteModel
+}> = ({ children, tree, note }) => {
+  const { ua } = UIState.useContainer()
+
+  useEffect(() => {
+    document.body.classList.add('overscroll-none')
+  }, [])
+
+  return (
+    <NoteTreeState.Provider initialState={tree}>
+      <NoteState.Provider initialState={note}>
+        {/* main layout */}
+        {ua?.isMobileOnly ? (
+          <MobileMainWrapper>{children}</MobileMainWrapper>
+        ) : (
+          <MainWrapper>{children}</MainWrapper>
+        )}
+
+        {/* modals */}
+        <TrashState.Provider>
+          <TrashModal />
+        </TrashState.Provider>
+        <SearchState.Provider>
+          <SearchModal />
+        </SearchState.Provider>
+        <ShareModal />
+        <PreviewModal />
+        <LinkToolbar />
+        <SidebarMenu />
+      </NoteState.Provider>
+    </NoteTreeState.Provider>
   )
 }
 

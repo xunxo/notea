@@ -1,23 +1,21 @@
-import IconSearch from 'heroicons/react/outline/Search'
-import IconTrash from 'heroicons/react/outline/Trash'
-import IconMoon from 'heroicons/react/outline/Moon'
-import IconChevronDoubleLeft from 'heroicons/react/outline/ChevronDoubleLeft'
-import IconSun from 'heroicons/react/outline/Sun'
-import IconGlobe from 'heroicons/react/outline/Globe'
-import IconInbox from 'heroicons/react/outline/Inbox'
-import IconCog from 'heroicons/react/outline/Cog'
-import { forwardRef, HTMLProps, useCallback, useEffect, useState } from 'react'
-import { UIState } from 'libs/web/state/ui'
+import {
+  SearchIcon,
+  TrashIcon,
+  ChevronDoubleLeftIcon,
+  InboxIcon,
+  CogIcon,
+} from '@heroicons/react/outline'
+import { forwardRef, HTMLProps, useCallback } from 'react'
+import UIState from 'libs/web/state/ui'
 import classNames from 'classnames'
-import { SearchState } from 'libs/web/state/search'
-import Search from 'components/search'
 import HotkeyTooltip from 'components/hotkey-tooltip'
-import { TrashState } from 'libs/web/state/trash'
-import Trash from 'components/trash'
 import Link from 'next/link'
 import dayjs from 'dayjs'
-import { useTheme } from 'next-themes'
-import IconDotsHorizontal from 'heroicons/react/outline/DotsHorizontal'
+import PortalState from 'libs/web/state/portal'
+import useI18n from 'libs/web/hooks/use-i18n'
+import HeadwayWidget from '@headwayapp/react-widget'
+import useMounted from 'libs/web/hooks/use-mounted'
+import { useRouter } from 'next/router'
 
 const ButtonItem = forwardRef<HTMLDivElement, HTMLProps<HTMLDivElement>>(
   (props, ref) => {
@@ -38,17 +36,23 @@ const ButtonItem = forwardRef<HTMLDivElement, HTMLProps<HTMLDivElement>>(
 )
 
 const ButtonMenu = () => {
+  const { t } = useI18n()
   const {
-    sidebar: { toggleFold, isFold },
+    sidebar: { toggle, isFold },
   } = UIState.useContainer()
   const onFold = useCallback(() => {
-    toggleFold()
-  }, [toggleFold])
+    toggle()
+  }, [toggle])
 
   return (
-    <HotkeyTooltip text="折叠侧边栏" keys={['cmd', '\\']}>
+    <HotkeyTooltip
+      text={t('Fold sidebar')}
+      commandKey
+      onHotkey={onFold}
+      keys={['\\']}
+    >
       <ButtonItem onClick={onFold}>
-        <IconChevronDoubleLeft
+        <ChevronDoubleLeftIcon
           className={classNames('transform transition-transform', {
             'rotate-180': isFold,
           })}
@@ -58,72 +62,59 @@ const ButtonMenu = () => {
   )
 }
 
-const ButtonTheme = () => {
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  const onToggleThemeMode = useCallback(() => {
-    if (theme === 'system') {
-      setTheme('light')
-    } else if (theme === 'dark') {
-      setTheme('system')
-    } else {
-      setTheme('dark')
-    }
-  }, [theme, setTheme])
-
-  useEffect(() => setMounted(true), [])
-
-  return (
-    <HotkeyTooltip text="切换主题">
-      <ButtonItem onClick={onToggleThemeMode}>
-        {mounted ? (
-          theme === 'system' ? (
-            <IconGlobe />
-          ) : theme === 'dark' ? (
-            <IconMoon />
-          ) : (
-            <IconSun />
-          )
-        ) : (
-          <IconDotsHorizontal />
-        )}
-      </ButtonItem>
-    </HotkeyTooltip>
-  )
-}
-
 const ButtonSearch = () => {
-  const { openModal } = SearchState.useContainer()
+  const { t } = useI18n()
+  const { search } = PortalState.useContainer()
 
   return (
-    <HotkeyTooltip text="Search" keys={['cmd', 'p']}>
-      <ButtonItem onClick={openModal} aria-label="search">
-        <IconSearch />
+    <HotkeyTooltip
+      text={t('Search note')}
+      commandKey
+      onHotkey={search.open}
+      keys={['P']}
+    >
+      <ButtonItem onClick={search.open} aria-label="search">
+        <SearchIcon />
       </ButtonItem>
     </HotkeyTooltip>
   )
 }
 
 const ButtonTrash = () => {
-  const { openModal } = TrashState.useContainer()
+  const { t } = useI18n()
+  const { trash } = PortalState.useContainer()
 
   return (
-    <HotkeyTooltip text="Trash" keys={['cmd', 'q']}>
-      <ButtonItem onClick={openModal} aria-label="trash">
-        <IconTrash />
+    <HotkeyTooltip
+      text={t('Trash')}
+      commandKey
+      optionKey
+      onHotkey={trash.open}
+      keys={['T']}
+    >
+      <ButtonItem onClick={trash.open} aria-label="trash">
+        <TrashIcon />
       </ButtonItem>
     </HotkeyTooltip>
   )
 }
 
 const ButtonDailyNotes = () => {
+  const { t } = useI18n()
+  const href = `/${dayjs().format('YYYY-MM-DD')}`
+  const router = useRouter()
+
   return (
-    <Link href={`/note/${dayjs().format('YYYY-MM-DD')}`}>
+    <Link href={href} shallow>
       <a>
-        <HotkeyTooltip text="Daily Notes" keys={['cmd', `\``]}>
+        <HotkeyTooltip
+          text={t('Daily Notes')}
+          commandKey
+          onHotkey={() => router.push(href, href, { shallow: true })}
+          keys={['shift', 'O']}
+        >
           <ButtonItem aria-label="daily notes">
-            <IconInbox />
+            <InboxIcon />
           </ButtonItem>
         </HotkeyTooltip>
       </a>
@@ -132,12 +123,14 @@ const ButtonDailyNotes = () => {
 }
 
 const ButtonSettings = () => {
+  const { t } = useI18n()
+
   return (
-    <Link href="/settings">
+    <Link href="/settings" shallow>
       <a>
-        <HotkeyTooltip text="Settings">
+        <HotkeyTooltip text={t('Settings')}>
           <ButtonItem aria-label="settings">
-            <IconCog />
+            <CogIcon />
           </ButtonItem>
         </HotkeyTooltip>
       </a>
@@ -146,25 +139,27 @@ const ButtonSettings = () => {
 }
 
 const SidebarTool = () => {
+  const mounted = useMounted()
+
   return (
-    <aside className="h-full flex flex-col w-10 flex-none bg-gray-200">
-      <SearchState.Provider>
-        <ButtonSearch />
-        <Search />
-      </SearchState.Provider>
-
-      <TrashState.Provider>
-        <ButtonTrash />
-        <Trash />
-      </TrashState.Provider>
-
+    <aside className="h-full flex flex-col w-12  md:w-11 flex-none bg-gray-200">
+      <ButtonSearch />
+      <ButtonTrash />
       <ButtonDailyNotes />
 
-      <ButtonSettings />
-
-      <div className="mt-auto">
+      <div className="tool mt-auto">
+        {mounted ? (
+          <HeadwayWidget account="J031Z7" badgePosition="center">
+            <div className="mx-3 w-5 h-5"></div>
+          </HeadwayWidget>
+        ) : null}
         <ButtonMenu></ButtonMenu>
-        <ButtonTheme></ButtonTheme>
+        <ButtonSettings></ButtonSettings>
+        <style jsx>{`
+          .tool :global(.HW_softHidden) {
+            display: none;
+          }
+        `}</style>
       </div>
     </aside>
   )

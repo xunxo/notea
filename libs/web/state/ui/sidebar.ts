@@ -1,25 +1,35 @@
-import { useSettingsAPI } from 'libs/web/api/settings'
+import useSettingsAPI from 'libs/web/api/settings'
 import { isBoolean } from 'lodash'
 import { useState, useCallback } from 'react'
 
-export function useSidebar(initState = false) {
-  const [isFold, setFold] = useState(initState)
+export default function useSidebar(initState = false, isMobileOnly = false) {
+  const [isFold, setIsFold] = useState(initState)
   const { mutate } = useSettingsAPI()
 
-  const toggleFold = useCallback(
+  const toggle = useCallback(
     async (state?: boolean) => {
-      setFold((prev) => {
+      setIsFold((prev) => {
         const isFold = isBoolean(state) ? state : !prev
 
-        mutate({
-          sidebar_is_fold: isFold,
-        })
+        if (!isMobileOnly) {
+          mutate({
+            sidebar_is_fold: isFold,
+          })
+        }
 
         return isFold
       })
     },
-    [mutate]
+    [isMobileOnly, mutate]
   )
 
-  return { isFold, toggleFold }
+  const open = useCallback(() => {
+    toggle(true)
+  }, [toggle])
+
+  const close = useCallback(() => {
+    toggle(false)
+  }, [toggle])
+
+  return { isFold, toggle, open, close }
 }

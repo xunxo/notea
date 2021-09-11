@@ -1,7 +1,19 @@
+const colors = require('tailwindcss/colors')
+
 module.exports = {
-  purge: ['./**/*.tsx'],
+  mode: 'jit',
+  purge: ['./pages/**/*.tsx', './components/**/*.tsx'],
   darkMode: 'class',
   theme: {
+    colors: {
+      gray: colors.gray,
+      blue: colors.blue,
+      transparent: 'transparent',
+      current: 'currentColor',
+    },
+    screens: {
+      md: '768px',
+    },
     extend: {
       cursor: {
         'col-resize': 'col-resize',
@@ -15,6 +27,7 @@ module.exports = {
   variants: {
     extend: {
       display: ['group-hover'],
+      visibility: ['group-hover'],
       backgroundColor: ['active'],
       borderWidth: ['last'],
     },
