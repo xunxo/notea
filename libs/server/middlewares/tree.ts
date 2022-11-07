@@ -1,32 +1,21 @@
-import { GetServerSidePropsContext } from 'next'
-import { ApiRequest } from '../api'
-import { API } from './error'
-// @atlaskit/tree 的依赖
-const { resetServerContext } = require('react-beautiful-dnd-next')
+import { SSRMiddleware } from '../connect';
 
-export default function withTree(wrapperHandler: any) {
-  return async function handler(
-    ctx: GetServerSidePropsContext & {
-      req: ApiRequest
-    }
-  ) {
-    const res = await wrapperHandler(ctx)
+export const applyTree: SSRMiddleware = async (req, res, next) => {
+    let tree;
 
-    resetServerContext()
-
-    let tree
-
-    try {
-      tree = await ctx.req.treeStore.get()
-    } catch (error) {
-      return API.NOT_FOUND.throw(error.message)
+    // todo 分享页面获取指定树结构
+    if (req.props.isLoggedIn) {
+        try {
+            tree = await req.state.treeStore.get();
+        } catch (error) {
+            res.APIError.NOT_FOUND.throw((error as Error).message);
+        }
     }
 
-    res.props = {
-      ...res.props,
-      tree,
-    }
+    req.props = {
+        ...req.props,
+        ...(tree && { tree }),
+    };
 
-    return res
-  }
-}
+    next();
+};

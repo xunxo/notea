@@ -1,20 +1,19 @@
-import { GetServerSidePropsContext } from 'next'
-import { getSettings } from 'pages/api/settings'
-import { ApiRequest } from '../api'
+import { DEFAULT_SETTINGS } from 'libs/shared/settings';
+import { getSettings } from 'pages/api/settings';
+import { SSRMiddleware } from '../connect';
 
-export default function withSettings(wrapperHandler: any) {
-  return async function handler(
-    ctx: GetServerSidePropsContext & {
-      req: ApiRequest
-    }
-  ) {
-    const res = await wrapperHandler(ctx)
+export const applySettings: SSRMiddleware = async (req, _res, next) => {
+    const settings = await getSettings(req.state.store);
+    let lngDict = {};
 
-    res.props = {
-      ...res.props,
-      settings: await getSettings(ctx.req.store),
+    // import language dict
+    if (settings.locale && settings.locale !== DEFAULT_SETTINGS.locale) {
+        lngDict = (await import(`locales/${settings.locale}.json`)).default;
     }
 
-    return res
-  }
-}
+    req.props = {
+        ...req.props,
+        ...{ settings, lngDict },
+    };
+    next();
+};

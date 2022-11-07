@@ -1,50 +1,87 @@
-import { useFetcher } from 'libs/web/api/fetcher'
-import router from 'next/router'
-import { FormEvent, useCallback } from 'react'
+import { TextField, Button } from '@material-ui/core';
+import { SSRContext, ssr } from 'libs/server/connect';
+import { applyCsrf } from 'libs/server/middlewares/csrf';
+import { useSession } from 'libs/server/middlewares/session';
+import useFetcher from 'libs/web/api/fetcher';
+import router from 'next/router';
+import { FormEvent, useCallback, useEffect } from 'react';
+import { useToast } from 'libs/web/hooks/use-toast';
 
 const LoginPage = () => {
-  const { request } = useFetcher()
-
-  const onSubmit = useCallback(
-    async (e: FormEvent<HTMLFormElement>) => {
-      e.preventDefault()
-      const data = await request<{ password: string }, { isLoggedIn: boolean }>(
-        {
-          url: '/api/auth/login',
-          method: 'POST',
+    const { request, error, loading } = useFetcher();
+    const toast = useToast();
+    const onSubmit = useCallback(
+        async (e: FormEvent<HTMLFormElement>) => {
+            e.preventDefault();
+            const data = await request<
+                { password: string },
+                { isLoggedIn: boolean }
+            >(
+                {
+                    url: '/api/auth/login',
+                    method: 'POST',
+                },
+                {
+                    password: e.currentTarget.password.value,
+                }
+            );
+            if (data?.isLoggedIn) {
+                location.href = (router.query.redirect as string) || '/';
+            }
         },
-        {
-          password: e.currentTarget.password.value,
-        }
-      )
-      if (data?.isLoggedIn) {
-        location.href = (router.query.redirect as string) || '/'
-      } else {
-        console.error(data)
-      }
-    },
-    [request]
-  )
+        [request]
+    );
 
-  return (
-    <form
-      className="flex w-full max-w-sm mx-auto space-x-3 pt-60"
-      method="post"
-      onSubmit={onSubmit}
-    >
-      <input
-        className="flex-1 appearance-none border border-transparent w-full py-2 px-4 bg-gray-50 text-gray-700 placeholder-gray-400 shadow-md rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent"
-        placeholder="password"
-        type="password"
-        required
-        name="password"
-      />
-      <input
-        className="flex-shrink-0 bg-purple-600 text-white text-base font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-purple-200"
-        type="submit"
-        value="Login"
-      />
-    </form>
-  )
-}
-export default LoginPage
+    useEffect(() => {
+        if (!loading && !!error) {
+            toast('Incorrect password', 'error');
+        }
+    }, [loading, error, toast]);
+
+    return (
+        <div className="h-screen flex flex-col">
+            <main className="flex flex-col my-auto ">
+                <img className="w-40 h-40 m-auto" src="/logo.svg" alt="Logo" />
+                <form
+                    className="w-80 mx-auto"
+                    action="post"
+                    noValidate
+                    onSubmit={onSubmit}
+                >
+                    <div className="flex flex-col space-y-2 my-8">
+                        <TextField
+                            variant="outlined"
+                            required
+                            fullWidth
+                            name="password"
+                            label="Password"
+                            type="password"
+                            id="password"
+                            autoComplete="current-password"
+                        />
+                    </div>
+
+                    <Button
+                        type="submit"
+                        fullWidth
+                        variant="contained"
+                        size="large"
+                        color="primary"
+                    >
+                        Login
+                    </Button>
+                </form>
+            </main>
+        </div>
+    );
+};
+
+export default LoginPage;
+
+export const getServerSideProps = async (ctx: SSRContext) => {
+    await ssr().use(useSession).use(applyCsrf).run(ctx.req, ctx.res);
+
+    return {
+        props: ctx.req.props,
+    };
+};

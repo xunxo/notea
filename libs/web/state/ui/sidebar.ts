@@ -1,25 +1,37 @@
-import { useSettingsAPI } from 'libs/web/api/settings'
-import { isBoolean } from 'lodash'
-import { useState, useCallback } from 'react'
+import useSettingsAPI from 'libs/web/api/settings';
+import { isBoolean } from 'lodash';
+import { useState, useCallback } from 'react';
 
-export function useSidebar(initState = false) {
-  const [isFold, setFold] = useState(initState)
-  const { mutate } = useSettingsAPI()
+export default function useSidebar(initState = false, isMobileOnly = false) {
+    const [isFold, setIsFold] = useState(initState);
+    const { mutate } = useSettingsAPI();
 
-  const toggleFold = useCallback(
-    async (state?: boolean) => {
-      setFold((prev) => {
-        const isFold = isBoolean(state) ? state : !prev
+    const toggle = useCallback(
+        async (state?: boolean) => {
+            setIsFold((prev) => {
+                const isFold = isBoolean(state) ? state : !prev;
 
-        mutate({
-          sidebar_is_fold: isFold,
-        })
+                if (!isMobileOnly) {
+                    mutate({
+                        sidebar_is_fold: isFold,
+                    });
+                }
 
-        return isFold
-      })
-    },
-    [mutate]
-  )
+                return isFold;
+            });
+        },
+        [isMobileOnly, mutate]
+    );
 
-  return { isFold, toggleFold }
+    const open = useCallback(() => {
+        toggle(true)
+            ?.catch((v) => console.error('Error whilst opening sidebar: %O', v));
+    }, [toggle]);
+
+    const close = useCallback(() => {
+        toggle(false)
+            ?.catch((v) => console.error('Error whilst closing sidebar: %O', v));
+    }, [toggle]);
+
+    return { isFold, toggle, open, close };
 }

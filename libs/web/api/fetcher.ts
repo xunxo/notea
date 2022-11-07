@@ -1,62 +1,76 @@
-import { useCallback, useRef, useState } from 'react'
+import { CSRF_HEADER_KEY } from 'libs/shared/const';
+import { useCallback, useRef, useState } from 'react';
+import CsrfTokenState from '../state/csrf-token';
 
 interface Params {
-  url: string
-  method: 'GET' | 'POST'
+    url: string;
+    method: 'GET' | 'POST';
+    headers?: Record<string, string>;
 }
 
-export function useFetcher() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string>()
-  const abortRef = useRef<AbortController>()
+export default function useFetcher() {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string>();
+    const abortRef = useRef<AbortController>();
+    const csrfToken = CsrfTokenState.useContainer();
 
-  const request = useCallback(async function request<Payload, ReponseData>(
-    params: Params,
-    payload?: Payload | string
-  ): Promise<ReponseData | undefined> {
-    const controller = new AbortController()
+    const request = useCallback(
+        async function request<Payload, ReponseData>(
+            params: Params,
+            payload?: Payload | string
+        ): Promise<ReponseData | undefined> {
+            const controller = new AbortController();
 
-    setLoading(true)
-    abortRef.current = controller
+            setLoading(true);
+            setError('');
+            abortRef.current = controller;
 
-    const init: RequestInit = {
-      signal: controller.signal,
-      method: params.method,
-    }
+            const init: RequestInit = {
+                signal: controller.signal,
+                method: params.method,
+            };
 
-    if (payload instanceof FormData) {
-      init.body = payload
-    } else {
-      init.body = JSON.stringify(payload)
-      init.headers = {
-        'Content-Type': 'application/json',
-      }
-    }
+            init.headers = {
+                ...(csrfToken && { [CSRF_HEADER_KEY]: csrfToken }),
+            };
 
-    try {
-      const response = await fetch(params.url, init)
+            if (payload instanceof FormData) {
+                init.body = payload;
+            } else {
+                init.body = JSON.stringify(payload);
+                init.headers['Content-Type'] = 'application/json';
+            }
 
-      if (!response.ok) {
-        throw await response.text()
-      }
-      if (response.status === 204) {
-        return
-      }
+            init.headers = {
+                ...init.headers,
+                ...(params.headers || {}),
+            };
 
-      return response.json()
-    } catch (e) {
-      if (!controller?.signal.aborted) {
-        setError(e)
-      }
-    } finally {
-      setLoading(false)
-    }
-  },
-  [])
+            try {
+                const response = await fetch(params.url, init);
 
-  const abort = useCallback(() => {
-    abortRef.current?.abort()
-  }, [])
+                if (!response.ok) {
+                    throw await response.text();
+                }
+                if (response.status === 204) {
+                    return;
+                }
 
-  return { loading, request, abort, error }
+                return response.json();
+            } catch (e) {
+                if (!controller?.signal.aborted) {
+                    setError(String(e));
+                }
+            } finally {
+                setLoading(false);
+            }
+        },
+        [csrfToken]
+    );
+
+    const abort = useCallback(() => {
+        abortRef.current?.abort();
+    }, []);
+
+    return { loading, request, abort, error };
 }

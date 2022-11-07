@@ -1,4 +1,0 @@
-{
-  "presets": ["next/babel"],
-  "plugins": ["lodash", ["styled-components", { "ssr": true }]]
-}
